@@ -1,0 +1,265 @@
+************************************************************************************************************************
+
+1. Tree Node Values Transformation
+text
+Problem: Given a tree with integer values at nodes.
+Phase 1 (Down): For each node, calculate sum of its subtree values.
+Phase 2 (Up): For each node, calculate sum of all values NOT in its subtree.
+Return: List of final values = down[node] + up[node].
+
+Example:
+n=4, edges=[[0,1],[0,2],[1,3]], values=[1,2,3,4]
+Down: [10,6,3,4] (subtree sums)
+Up: [0,4,7,6] (rest of tree)
+Result: [10,10,10,10] (always total sum for all nodes)
+
+
+************************************************************************************************************************
+
+2. Binary Tree Maximum Path Sum Variant
+text
+Problem: Given binary tree (not necessarily BST), each node has value.
+Phase 1 (Down): Maximum path sum starting at node going downward.
+Phase 2 (Up): Maximum path sum ending at node coming upward.
+Return: For each node, max(down[node], up[node]).
+
+Input: n nodes, parent array (not edges), values
+Special: Must handle negative values, empty paths.
+
+
+************************************************************************************************************************
+
+
+3. Network Message Propagation
+text
+Problem: Network of servers as tree, each has initial message count.
+Rule: Each second, parent sends half its messages to each child (floor division).
+After downward propagation, children send back 1/3 of messages (ceil).
+Return: Final message count at each node after k seconds.
+
+Example:
+n=3, edges=[[0,1],[0,2]], values=[100,0,0], k=1
+Down: [100,50,50] (parent→children)
+Up: [67,17,17] (children→parent with 1/3)
+Result: [67,67,67] (after redistribution)
+
+
+************************************************************************************************************************
+
+
+4. Employee Rating Hierarchy
+text
+Problem: Company hierarchy tree, each employee has rating.
+Calculate for each employee:
+- Average rating of their team (subtree)
+- Average rating of company excluding their team
+Return: List of differences: team_avg - company_avg
+
+Edge cases: Single employee, negative ratings, floating point precision.
+
+
+************************************************************************************************************************
+
+5. Resource Allocation Tree
+text
+Problem: Tree represents resource distribution network.
+Each node: requested resources, allocated resources.
+Downward: Parent allocates to children based on request proportion.
+Upward: Children return unused resources to parent.
+Return: Final allocation at each node.
+
+Example:
+n=3, edges=[[0,1],[0,2]], requests=[100,30,70], total=150
+Down: Allocate proportional: [150,45,105]
+Up: Return unused (if any)
+Result: Final balanced allocation
+
+
+************************************************************************************************************************
+
+6. Sensor Network Data Aggregation
+text
+Problem: Tree of sensors, each collects data points.
+Phase 1 (Down): Leaf sensors send data to parent, parent aggregates (sum/max).
+Phase 2 (Up): Root processes and sends command back down.
+Return: For each node, processed_value = (down_data + up_command) / 2
+
+Input: edges, sensor_values, aggregation_type ("sum"/"max"/"avg")
+
+
+************************************************************************************************************************
+
+7. File System Permission Propagation
+text
+Problem: Tree representing file system, each node has permission bits.
+Downward: Parent permissions propagate to children (OR operation).
+Upward: Children can request elevated permissions (AND operation).
+Return: Final permission bits at each node after both passes.
+
+Example:
+Permissions as integers (bitmask), edges define hierarchy.
+Down: child_perms |= parent_perms
+Up: parent_perms &= (child1_perms & child2_perms ...)
+
+************************************************************************************************************************
+
+8. Load Balancer Tree
+text
+Problem: Tree of servers with current load.
+Algorithm:
+1. Downward: Overloaded parents distribute load to children
+2. Upward: Underloaded children return load to parents
+3. Repeat until balanced (or max iterations)
+Return: Final load at each server.
+
+Constraints: Load must be integer, can't go below 0.
+
+************************************************************************************************************************
+
+/**
+ * Problem: "Tree Value Redistribution"
+ * Given a tree with n nodes, each node has an integer value.
+ * Process:
+ * 1. Downward phase: Each node gives half its value to each child
+ *    (distributes equally, integer division)
+ * 2. Upward phase: Each node returns 1/4 of its value to parent
+ *    (if not root)
+ * Return final values after redistribution.
+ *
+ * Input: n, edges[][2], values[], iterations (number of times to repeat)
+ * Output: int[] final values
+ */
+
+
+public int[] redistributeTreeValues(int n, int[][] edges, int[] values, int iterations) {
+    // Build tree
+    List<Integer>[] tree = new ArrayList[n];
+    for (int i = 0; i < n; i++) tree[i] = new ArrayList<>();
+    for (int[] edge : edges) {
+        tree[edge[0]].add(edge[1]);
+        tree[edge[1]].add(edge[0]);
+    }
+
+    int[] result = values.clone();
+
+    for (int iter = 0; iter < iterations; iter++) {
+        // Downward pass
+        int[] temp = result.clone();
+        dfsDown(0, -1, tree, temp, result);
+
+        // Upward pass
+        dfsUp(0, -1, tree, result);
+    }
+
+    return result;
+}
+
+private void dfsDown(int node, int parent, List<Integer>[] tree,
+                    int[] source, int[] dest) {
+    int childCount = 0;
+    for (int child : tree[node]) {
+        if (child != parent) {
+            childCount++;
+            dfsDown(child, node, tree, source, dest);
+        }
+    }
+
+    if (childCount > 0) {
+        int giveEach = source[node] / childCount;
+        for (int child : tree[node]) {
+            if (child != parent) {
+                dest[child] += giveEach;
+                dest[node] -= giveEach;
+            }
+        }
+    }
+}
+
+private int dfsUp(int node, int parent, List<Integer>[] tree, int[] values) {
+    int total = values[node];
+
+    for (int child : tree[node]) {
+        if (child != parent) {
+            int childVal = dfsUp(child, node, tree, values);
+            int returnAmt = childVal / 4;
+            values[node] += returnAmt;
+            values[child] -= returnAmt;
+            total += childVal;
+        }
+    }
+
+    return total;
+}
+
+************************************************************************************************************************
+
+
+/**
+ * "Network Signal Strength"
+ * Tree of network nodes, each has initial signal strength.
+ * Signal diminishes as it travels:
+ * - Downward: strength decreases by 1 for each edge
+ * - Upward: strength decreases by 2 for each edge
+ * Return maximum signal received at each node from either direction.
+ */
+public int[] networkSignalStrength(int n, int[][] edges, int[] strengths) {
+    List<Integer>[] adj = new ArrayList[n];
+    for (int i = 0; i < n; i++) adj[i] = new ArrayList<>();
+    for (int[] e : edges) {
+        adj[e[0]].add(e[1]);
+        adj[e[1]].add(e[0]);
+    }
+
+    int[] downMax = new int[n];
+    int[] upMax = new int[n];
+
+    // Compute downMax (post-order)
+    computeDown(0, -1, adj, strengths, downMax);
+
+    // Compute upMax (pre-order)
+    computeUp(0, -1, adj, strengths, downMax, upMax, 0);
+
+    // Combine results
+    int[] result = new int[n];
+    for (int i = 0; i < n; i++) {
+        result[i] = Math.max(downMax[i], upMax[i]);
+    }
+
+    return result;
+}
+
+private int computeDown(int node, int parent,
+                       List<Integer>[] adj, int[] strengths, int[] downMax) {
+    downMax[node] = strengths[node];
+
+    for (int child : adj[node]) {
+        if (child != parent) {
+            int childStrength = computeDown(child, node, adj, strengths, downMax);
+            downMax[node] = Math.max(downMax[node], childStrength - 1);
+        }
+    }
+
+    return downMax[node];
+}
+
+private void computeUp(int node, int parent,
+                      List<Integer>[] adj, int[] strengths,
+                      int[] downMax, int[] upMax, int parentUp) {
+    upMax[node] = Math.max(strengths[node], parentUp - 2);
+
+    // Also consider signals from siblings through parent
+    for (int child : adj[node]) {
+        if (child != parent) {
+            // Best signal from parent or other siblings
+            int bestThroughParent = parentUp - 2;
+            for (int sibling : adj[node]) {
+                if (sibling != parent && sibling != child) {
+                    bestThroughParent = Math.max(bestThroughParent,
+                                               downMax[sibling] - 2);
+                }
+            }
+            computeUp(child, node, adj, strengths, downMax, upMax,
+                     Math.max(strengths[node], bestThroughParent));
+        }
+    }
+}
